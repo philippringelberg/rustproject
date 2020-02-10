@@ -1,14 +1,16 @@
 use std::collections::{HashMap, HashSet};
-use structopt::StructOpt;
-// Providing a command line argument to switch between the exact
-// and approximated calculation of the Busy time period
-#[derive(Debug, StructOpt)]
-struct ExCalc {
-    // This option can be specified by -e 
-    #[structopt(short)]
-    exact_calculation: bool,
-}
-
+    /*
+    I tried to implement StructOpt here but decided against it
+    // use structopt::StructOpt;
+    // Providing a command line argument to switch between the exact
+    // and approximated calculation of the Busy time period
+    #[derive(Debug, StructOpt)]
+    struct ExCalc {
+        // This option can be specified by -e 
+        #[structopt(short)]
+        exact_calculation: bool,
+    }
+    */
 // common data structures
 
 #[derive(Debug)]
@@ -32,16 +34,15 @@ pub struct Trace {
 #[derive(Debug)]
 pub struct TaskAnalysis {
     pub task: String,
-    pub rt: f64,
+    pub rt: u32,
     pub ct: u32,
-    pub bpt: u32,
-    pub it: f64,
+    pub bt: u32,
+    pub it: u32,
 }
 
 // Type to document the resource blocking
 #[derive(Debug)]
 pub struct BlockingFiller {
-    // pub task: String,
     pub resource: String,
     pub time: u32,
     pub prio: u8,
@@ -65,9 +66,6 @@ pub type InterTimings = HashMap<String, u32>;
 // A map from Traces with WCET timings
 pub type Ct = HashMap<String, u32>;
 
-// A map of all deadlines for the tasks
-pub type Dt = HashMap<String, u32>;
-
 // A blocking vector to list which Task is blocking which Resource for how long
 pub type BlockingVector = Vec<BlockingFiller>;
 
@@ -75,13 +73,13 @@ pub type BlockingVector = Vec<BlockingFiller>;
 pub type Bpt = HashMap<String, u32>;
 
 // A map of the response times of each task
-pub type ResponseTime = HashMap<String, f64>;
+pub type ResponseTime = HashMap<String, u32>;
 
 // A map of the interference to each task
-pub type Interference = HashMap<String, f64>;
+pub type Interference = HashMap<String, u32>;
 
 // A map from Traces with blocking timings
-pub type TBlock = HashMap<String, u32>;
+pub type BlockingTime = HashMap<String, u32>;
 
 // A special data type for the final display form of all results
 pub type FinalDisplay = Vec<TaskAnalysis>;
