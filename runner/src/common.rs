@@ -1,4 +1,13 @@
 use std::collections::{HashMap, HashSet};
+use structopt::StructOpt;
+// Providing a command line argument to switch between the exact
+// and approximated calculation of the Busy time period
+#[derive(Debug, StructOpt)]
+struct ExCalc {
+    // This option can be specified by -e 
+    #[structopt(short)]
+    exact_calculation: bool,
+}
 
 // common data structures
 
@@ -116,4 +125,12 @@ fn update_tr(s: String, trace: &Trace, trmap: &mut TaskResources) {
     for trace in &trace.inner {
         update_tr(s.clone(), trace, trmap);
     }
+}
+
+pub fn readin_u32(task: &Task, hin: &HashMap<String,u32>) -> u32 {
+    let mut out: u32 = 0;
+    if let Some(value) = hin.get(&task.id) {
+        out = *value;
+    }
+    out
 }

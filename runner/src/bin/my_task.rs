@@ -1,10 +1,19 @@
 use std::collections::{HashMap, HashSet};
 use runner::common::*;
 use std::ops::Div;
+use std::env;
+
+
 
 // Sadly I did not find a way to easily outsource the task generation
 // I could try to do it in the source directory
 fn main() {
+    let mut exact_calculation: bool = false;
+    if let Some(arg) = env::args().nth(1){
+        if arg == "exact".to_string() {
+            exact_calculation = true;
+        }
+    }
     let t1 = Task {
         id: "T1".to_string(),
         prio: 1,
@@ -75,27 +84,30 @@ fn main() {
         // println!("tr: {:?}", tr);
 
     let (at, ct, dt ) = own_analysis(&tasks);
-    
-    // Blocking times for each task get calculated
-    let t_block = calculate_blocking_time(&tasks, &tr);
-    // println!("The blocking time of the tasks is: {:?}", t_block);
-
+       
     // Calculating and displaying the total CPU load
     let ltot = calculate_ltot(&tasks);
     println!("The load factor on the CPU is: {}", ltot);
 
-    let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &t_block);
+    if ltot < 1.0 {
+        // Blocking times for each task get calculated
+        let bt = calculate_blocking_time(&tasks, &tr);
+        // println!("The blocking time of the tasks is: {:?}", bt);
 
-    // Calculating the Response time 
-    let rt: ResponseTime = calculate_response_time(&tasks, &ct, &t_block, &it);
-    // println!("The response time of each task is: {:?}", rt);
+        let (bpt, bpt_possible) = calculate_busy_period(&tasks, &ct, &bt, &ip, exact_calculation);
+    
+        let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &bt);
 
-    let bpt: Bpt = calculate_preemption(&tasks, &ct, &t_block);
-        
-    // Putting all together with this function
-    let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bpt, &it);
-    println!("{:?}", finaldisplay);
-
+        // Calculating the Response time 
+        let rt: ResponseTime = calculate_response_time(&tasks, &ct, &bt, &it);
+        // println!("The response time of each task is: {:?}", rt);
+            
+        if bpt_possible {
+            // Putting all together with this function
+            let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bpt, &it);
+            println!("{:?}", finaldisplay);
+        }
+    } 
 }
 
 
@@ -168,7 +180,7 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> TBlock {
 
     for t in tasks {
         //defining all data for the blocking vector on task base
-        let mut prio: u8 = t.prio;
+        let prio: u8 = t.prio;
        
         for i in &t.trace.inner {
             fill_blocking_vector(i, prio, &mut blocking_vector);
@@ -178,8 +190,8 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> TBlock {
         // blocking time and their priority, this is too much information
         // which will be sorted out later 
         fn fill_blocking_vector(trace: &Trace, prio: u8, blocking_vector: &mut BlockingVector) {
-            let mut resource = trace.id.clone();
-            let mut time = trace.end - trace.start;
+            let resource = trace.id.clone();
+            let time = trace.end - trace.start;
                 
             let bf = BlockingFiller {
                 // task: 
@@ -235,41 +247,69 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> TBlock {
     bt
 }
 
-fn calculate_preemption(tasks: &Tasks, ct: &Ct, bt: &TBlock ) -> Bpt {
+fn calculate_busy_period(tasks: &Tasks, ct: &Ct, bt: &TBlock, ip: &IdPrio, is_exact: bool ) -> (Bpt, bool)  {
     // parameter to change between exact solution and approximation
     // when true, the formula of the recurrence relation gets used
-    let is_exact = false;
 
     // 
     let mut bpt = HashMap::new();
+    let mut bpt_possible = true;
 
     if !is_exact {
+        println! ("Busy-time calculation is approximated");
         for t in tasks {
             bpt.insert(t.id.clone(), t.deadline);
         }
     }
-/*
+    
+
+
     if is_exact {
+        println!("Busy-period calculation is exact");
+
         for t in tasks {
             // initializing the values for Ci and Bi 
-            let mut ctask = ct.get(&t.id);
-            let mut btask = bt.get(&t.id);
+            let ctask = readin_u32(&t, &ct);
+            let btask = readin_u32(&t, &bt);
+            let prio_task = t.prio;
 
-            let ctask = *ctask;
-            let btask = *btask;
 
             let mut bpt_new: u32 = t.deadline;
-            let mut bpt_old: u32 = ctask + btask;
+            let bpt_old: u32 = ctask + btask;
+            let mut sum: u32 = 0;
+            for j in tasks {
+                // this creates the sum that gets added into the iteration
+                for i in tasks {
+                    // Iteration over higher prio tasks
+                    if prio_task < i.prio {
 
-            
-        }
-        
-    }
-    */
+                        // sadly everything needs to be f64 for the ceiling function
+                        // here is where Ri(s-1)/ Dh happens
+                        let bpt_old64 = f64::from(bpt_old);
+                        let dt_higher64 = f64::from(i.deadline);
+                        let ceiling64 = f64::ceil(bpt_old64 / dt_higher64 );
+                        let ceiling = ceiling64 as u32;
+                        
+                        // now multiply the ceiling with C(h)
+                        let ct_higher = readin_u32(&i, &ct);
+                        let part_sum = ceiling * ct_higher;
+                        sum += part_sum;
+                    }   
+                }
 
-    bpt
+                bpt_new = ctask + btask + sum;
+            }
+
+            if bpt_new > t.deadline {
+                println!("The Busy-Time for task {} is too high! Scheduling is not possible",
+                     t.id.clone());
+                bpt_possible = false;
+            }
+            bpt.insert(t.id.clone(), bpt_new);            
+        }        
+    }  
+    (bpt, bpt_possible)
 }
-
 
 fn calculate_interference (tasks: &Tasks, idprio: &IdPrio, ct: &Ct, at: &InterTimings, bpt: &Bpt) -> Interference {
     /*  Implement a function that takes a Task and returns the 

@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 probe-rs = { version = "0.3.0" }
 ktest = { path = "../ktest", version = "0.1.0" }
+structopt = {version = "0.3", default-features = false }
 failure = "0.1.6"
 
 [lib]
