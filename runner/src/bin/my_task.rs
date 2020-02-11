@@ -101,11 +101,11 @@ fn main() {
         let (rt, rt_possible) = calculate_response_time(&tasks, &ct, &bt, &it);
         // println!("The response time of each task is: {:?}", rt);
             
-        if bpt_possible && rt_possible {
+        //if bpt_possible && rt_possible {
             // Putting all together with this function
             let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bt, &it);
             println!("{:?}", finaldisplay);
-        }
+        //}
     } 
 }
 
@@ -264,40 +264,47 @@ fn calculate_busy_period(tasks: &Tasks, ct: &Ct, bt: &BlockingTime, is_exact: bo
             let prio_task = t.prio;
 
 
-            let mut bpt_new: u32 = t.deadline;
-            let bpt_old: u32 = ctask + btask; // Initialize the first value
-            let mut sum: u32 = 0;
-            for j in tasks { // Iteration of number of tasks, R(0), R(1), ... R(jmax)
+            let mut r_new: u32 = 0;
+            let mut r_check: u32 = 0; // A value of R to check if it changed to the previous one
+            let mut r_old: u32 = ctask + btask; // Initialize the first value
+            println!("{} R0 {}, Ct {}, Bt {}",t.id.clone(), r_old, ctask, btask);
+
+            while r_check != r_old { // Iteration until stable
+                let mut sum: u32 = 0;
+                r_check = r_old;
                 
-                for i in tasks {
+                for i in tasks { 
                     // Iteration over higher prio tasks
                     if prio_task < i.prio {
 
                         // sadly everything needs to be f64 for the ceiling function
                         // here is where Ri(s-1)/ Dh happens
-                        let bpt_old64 = f64::from(bpt_old);
+                        let r_old64 = f64::from(r_old);
                         let dt_higher64 = f64::from(i.deadline);
-                        let ceiling64 = f64::ceil(bpt_old64 / dt_higher64 );
-                        let ceiling = ceiling64 as u32;
+                        let division = r_old64 / dt_higher64;
+                        let ceiling = division.ceil() as u32;
+                        
                         
                         // now multiply the ceiling with C(h)
                         let ct_higher = readin_u32(&i, &ct);
-                        let part_sum = ceiling * ct_higher;
-                        sum += part_sum;
+                        sum += ceiling * ct_higher;
                     }   
                 }
-
-                bpt_new = ctask + btask + sum;
+                
+                r_new = ctask + btask + sum ;
+                r_old = r_new;
             }
             // Warning message for the case Bpt(t) > D(t)
-            if bpt_new > t.deadline {
+            if r_new > t.deadline {
                 println!("The Busy-Time for task {} is too high! Scheduling is not possible",
                      t.id.clone());
                 bpt_possible = false;
             }
-            bpt.insert(t.id.clone(), bpt_new);            
+            
+            bpt.insert(t.id.clone(), r_new);            
         }        
-    }  
+    }
+    println!("Bpt is: {:?}", bpt);  
     (bpt, bpt_possible)
 }
 
