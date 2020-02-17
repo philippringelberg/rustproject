@@ -22,7 +22,21 @@ fn main() {
             id: "T1".to_string(),
             start: 0,
             end: 10,
-            inner: vec![],
+            inner: vec![
+                Trace{
+                    id: "R1".to_string(),
+                    start: 5, 
+                    end: 10, 
+                    inner:vec![
+                        Trace{
+                            id: "R2".to_string(),
+                            start: 5,
+                            end: 10,
+                            inner: vec![]
+                        }
+                    ]
+                }
+            ],
         },
     };
 
@@ -75,8 +89,21 @@ fn main() {
         },
     };
 
+    let t4 = Task {
+        id: "T4".to_string(),
+        prio: 1, 
+        deadline: 200,
+        inter_arrival: 200,
+        trace: Trace{
+            id: "T4".to_string(),
+            start: 0,
+            end: 15,
+            inner: vec![]
+        }
+    };
+
     // builds a vector of tasks t1, t2, t3
-    let tasks: Tasks = vec![t1, t2, t3];
+    let tasks: Tasks = vec![t1, t2, t3, t4];
 
     let ( ip, tr) = pre_analysis(&tasks);
         // println!("ip: {:?}", ip);
@@ -91,15 +118,13 @@ fn main() {
     if ltot < 1.0 {
         // Blocking times for each task get calculated
         let bt = calculate_blocking_time(&tasks, &tr);
-        // println!("The blocking time of the tasks is: {:?}", bt);
-
+        
         let (bpt, bpt_possible) = calculate_busy_period(&tasks, &ct, &bt, exact_calculation);
     
         let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &bpt);
-
+        println!("it {:?}", it);
         // Calculating the Response time 
         let (rt, rt_possible) = calculate_response_time(&tasks, &ct, &bt, &it);
-        // println!("The response time of each task is: {:?}", rt);
             
         //if bpt_possible && rt_possible {
             // Putting all together with this function
@@ -267,7 +292,7 @@ fn calculate_busy_period(tasks: &Tasks, ct: &Ct, bt: &BlockingTime, is_exact: bo
             let mut r_new: u32 = 0;
             let mut r_check: u32 = 0; // A value of R to check if it changed to the previous one
             let mut r_old: u32 = ctask + btask; // Initialize the first value
-            println!("{} R0 {}, Ct {}, Bt {}",t.id.clone(), r_old, ctask, btask);
+            // println!("{} R0 {}, Ct {}, Bt {}",t.id.clone(), r_old, ctask, btask);
 
             while r_check != r_old { // Iteration until stable
                 let mut sum: u32 = 0;
