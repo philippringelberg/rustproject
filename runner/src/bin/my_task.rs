@@ -22,21 +22,17 @@ fn main() {
             id: "T1".to_string(),
             start: 0,
             end: 10,
-            inner: vec![
-                Trace{
+            inner: vec![ Trace {
+                id:"R2".to_string(),
+                start: 0,
+                end: 8,
+                inner: vec![ Trace {
                     id: "R1".to_string(),
-                    start: 5, 
-                    end: 10, 
-                    inner:vec![
-                        Trace{
-                            id: "R2".to_string(),
-                            start: 5,
-                            end: 10,
-                            inner: vec![]
-                        }
-                    ]
-                }
-            ],
+                    start: 4,
+                    end: 8,
+                    inner: vec![]
+                } ],
+            }],
         },
     };
 
@@ -81,7 +77,7 @@ fn main() {
             start: 0,
             end: 30,
             inner: vec![Trace {
-                id: "R2".to_string(),
+                id: "R1".to_string(),
                 start: 10,
                 end: 20,
                 inner: vec![],
@@ -236,16 +232,15 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> BlockingTime {
             }
         }
     }
+
     // part two
     for t in tasks {
         // Get the needed information for the task looked at
         // which Resources is it using
-        let mut retask = HashSet::new();
-
-        // a list that contains all resources used
+        let mut retask = HashSet::new(); // a list that contains all resources used
         let mut a: bool = false;
-        let mut btpart: u32 = 0;
-
+        let mut tmax: u32 = 0;        // Finding the max blocking time
+                
         // I should change this into an if statement to only have the case of some
         // Geting the resources for the task out of the Task resources
         match tr.get(&t.id.clone()){
@@ -256,7 +251,7 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> BlockingTime {
         // Iterating over the resources of a task
         for i in retask {
             let resource_name = i.clone();
-            let mut tmax: u32 = 0;
+            
             
             // now iterate through the list of all resources to find 
             // the resource looked at 
@@ -270,10 +265,9 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> BlockingTime {
                         tmax = time_look;
                     }
                 }
-            }
-            btpart += tmax;             
+            }             
         }
-        bt.insert(t.id.clone(), btpart);
+        bt.insert(t.id.clone(), tmax);
     }    
     bt
 }
