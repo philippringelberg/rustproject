@@ -120,17 +120,18 @@ fn main() {
         let bt = calculate_blocking_time(&tasks, &tr);
         
         let (bpt, bpt_possible) = calculate_busy_period(&tasks, &ct, &bt, exact_calculation);
+            // println!("Bpt is: {:?}", bpt);
     
         let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &bpt);
-        println!("it {:?}", it);
+            // println!("it {:?}", it);
         // Calculating the Response time 
         let (rt, rt_possible) = calculate_response_time(&tasks, &ct, &bt, &it);
             
-        //if bpt_possible && rt_possible {
+        if bpt_possible && rt_possible {
             // Putting all together with this function
             let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bt, &it);
             println!("{:?}", finaldisplay);
-        //}
+        }
     } 
 }
 
@@ -329,7 +330,7 @@ fn calculate_busy_period(tasks: &Tasks, ct: &Ct, bt: &BlockingTime, is_exact: bo
             bpt.insert(t.id.clone(), r_new);            
         }        
     }
-    println!("Bpt is: {:?}", bpt);  
+      
     (bpt, bpt_possible)
 }
 
