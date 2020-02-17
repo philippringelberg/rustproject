@@ -88,7 +88,7 @@ fn main() {
             }],
         },
     };
-
+/*
     let t4 = Task {
         id: "T4".to_string(),
         prio: 1, 
@@ -101,9 +101,10 @@ fn main() {
             inner: vec![]
         }
     };
+*/
 
     // builds a vector of tasks t1, t2, t3
-    let tasks: Tasks = vec![t1, t2, t3, t4];
+    let tasks: Tasks = vec![t1, t2, t3];
 
     let ( ip, tr) = pre_analysis(&tasks);
         // println!("ip: {:?}", ip);
@@ -119,19 +120,31 @@ fn main() {
         // Blocking times for each task get calculated
         let bt = calculate_blocking_time(&tasks, &tr);
         
-        let (bpt, bpt_possible) = calculate_busy_period(&tasks, &ct, &bt, exact_calculation);
+        if !exact_calculation {
+            let bpt = calculate_busy_period(&tasks);
             // println!("Bpt is: {:?}", bpt);
-    
-        let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &bpt);
-            // println!("it {:?}", it);
-        // Calculating the Response time 
-        let (rt, rt_possible) = calculate_response_time(&tasks, &ct, &bt, &it);
-            
-        if bpt_possible && rt_possible {
-            // Putting all together with this function
-            let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bt, &it);
-            println!("{:?}", finaldisplay);
+            let it: Interference = calculate_interference(&tasks , &ip, &ct, &at , &bpt);
+                // println!("it {:?}", it);
+            // Calculating the Response time 
+            let (rt, rt_possible) = calculate_response_time(&tasks, &ct, &bt, &it);
+
+            if rt_possible {
+                // Putting all together with this function
+                let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bt, &it);
+                println!("{:?}", finaldisplay);
+            }
         }
+        else if exact_calculation {
+            let (it, rt, rt_possible) = calculate_exact_response_time(&tasks, &ct, &bt);
+            
+            if rt_possible {
+                // Putting all together with this function
+                let finaldisplay: FinalDisplay = final_display(&tasks, &rt, &ct, &bt, &it);
+                println!("{:?}", finaldisplay);
+            }
+        }
+            
+        
     } 
 }
 
@@ -265,73 +278,19 @@ fn calculate_blocking_time(tasks: &Tasks, tr: &TaskResources) -> BlockingTime {
     bt
 }
 
-fn calculate_busy_period(tasks: &Tasks, ct: &Ct, bt: &BlockingTime, is_exact: bool ) -> (Bpt, bool)  {
+fn calculate_busy_period(tasks: &Tasks ) -> Bpt  {
     // parameter to change between exact solution and approximation
     // when true, the formula of the recurrence relation gets used
 
     // 
     let mut bpt = HashMap::new();
-    let mut bpt_possible = true;
 
-    if !is_exact {
         println! ("Busy-time calculation is approximated. To get the exact solution run: cargo run --bin my_task exact");
         for t in tasks {
             bpt.insert(t.id.clone(), t.deadline);
         }
-    }
-    
-    if is_exact {
-        println!("Busy-period calculation is exact");
-
-        for t in tasks {
-            // initializing the values for Ci and Bi 
-            let ctask = readin_u32(&t, &ct);
-            let btask = readin_u32(&t, &bt);
-            let prio_task = t.prio;
-
-
-            let mut r_new: u32 = 0;
-            let mut r_check: u32 = 0; // A value of R to check if it changed to the previous one
-            let mut r_old: u32 = ctask + btask; // Initialize the first value
-            // println!("{} R0 {}, Ct {}, Bt {}",t.id.clone(), r_old, ctask, btask);
-
-            while r_check != r_old { // Iteration until stable
-                let mut sum: u32 = 0;
-                r_check = r_old;
-                
-                for i in tasks { 
-                    // Iteration over higher prio tasks
-                    if prio_task < i.prio {
-
-                        // sadly everything needs to be f64 for the ceiling function
-                        // here is where Ri(s-1)/ Dh happens
-                        let r_old64 = f64::from(r_old);
-                        let dt_higher64 = f64::from(i.deadline);
-                        let division = r_old64 / dt_higher64;
-                        let ceiling = division.ceil() as u32;
-                        
-                        
-                        // now multiply the ceiling with C(h)
-                        let ct_higher = readin_u32(&i, &ct);
-                        sum += ceiling * ct_higher;
-                    }   
-                }
-                
-                r_new = ctask + btask + sum ;
-                r_old = r_new;
-            }
-            // Warning message for the case Bpt(t) > D(t)
-            if r_new > t.deadline {
-                println!("The Busy-Time for task {} is too high! Scheduling is not possible",
-                     t.id.clone());
-                bpt_possible = false;
-            }
-            
-            bpt.insert(t.id.clone(), r_new);            
-        }        
-    }
       
-    (bpt, bpt_possible)
+    (bpt)
 }
 
 fn calculate_interference (tasks: &Tasks, idprio: &IdPrio, ct: &Ct, at: &InterTimings, bpt: &Bpt) -> Interference {
@@ -391,6 +350,7 @@ fn calculate_interference (tasks: &Tasks, idprio: &IdPrio, ct: &Ct, at: &InterTi
         it.insert(t.id.clone(), part_sum);
     }
 
+    
     it
 }
 
@@ -417,6 +377,64 @@ fn calculate_response_time(tasks: &Tasks, ct: &Ct, bt: &BlockingTime, it: &Inter
         rt.insert(t.id.clone(), rttask);
     }
     (rt, rt_possible)
+}
+
+fn calculate_exact_response_time(tasks: &Tasks, ct: &Ct, bt: &BlockingTime) -> (Interference, ResponseTime, bool) {
+    println!("Busy-period calculation is exact");
+    let mut rt = HashMap::new();
+    let mut it = HashMap::new();
+    let mut rt_possible = true;
+
+        for t in tasks {
+            // initializing the values for Ci and Bi 
+            let ctask = readin_u32(&t, &ct);
+            let btask = readin_u32(&t, &bt);
+            let prio_task = t.prio;
+            let mut ittask: u32 = 0;
+
+
+            let mut r_new: u32 = 0;
+            let mut r_check: u32 = 0; // A value of R to check if it changed to the previous one
+            let mut r_old: u32 = ctask + btask; // Initialize the first value
+            // println!("{} R0 {}, Ct {}, Bt {}",t.id.clone(), r_old, ctask, btask);
+
+            while r_check != r_old { // Iteration until stable
+                let mut sum: u32 = 0;
+                r_check = r_old;
+                
+                for i in tasks { 
+                    // Iteration over higher prio tasks
+                    if prio_task < i.prio {
+
+                        // sadly everything needs to be f64 for the ceiling function
+                        // here is where Ri(s-1)/ Dh happens
+                        let r_old64 = f64::from(r_old);
+                        let dt_higher64 = f64::from(i.deadline);
+                        let division = r_old64 / dt_higher64;
+                        let ceiling = division.ceil() as u32;
+                        
+                        
+                        // now multiply the ceiling with C(h)
+                        let ct_higher = readin_u32(&i, &ct);
+                        sum += ceiling * ct_higher;
+                    }   
+                }
+                
+                r_new = ctask + btask + sum ;
+                r_old = r_new;
+                ittask = sum;
+            }
+            // Warning message for the case Bpt(t) > D(t)
+            if r_new > t.deadline {
+                println!("The Busy-Time for task {} is too high! Scheduling is not possible",
+                     t.id.clone());
+                rt_possible = false;
+            }
+            
+            rt.insert(t.id.clone(), r_new);
+            it.insert(t.id.clone(), ittask);
+        }
+    (it, rt, rt_possible)  
 }
 
 fn final_display(tasks: &Tasks, rt: &ResponseTime , ct: &Ct, bt: &BlockingTime, it: &Interference ) -> FinalDisplay {
