@@ -312,7 +312,6 @@ fn calculate_interference (tasks: &Tasks, idprio: &IdPrio, ct: &Ct, at: &InterTi
                         
                     //Here is where the main code is exectued for the calculation
                     // of the time interval
-                    let k = 0;
                     if let Some(k) = ct.get(task) {
 
                         // It is a bit tricky to get the values of at here
@@ -437,7 +436,6 @@ fn final_display(tasks: &Tasks, rt: &ResponseTime , ct: &Ct, bt: &BlockingTime, 
       
     for t in tasks {
         // Reading in
-        let task = t.id.clone();
         let rttask = readin_u32(&t, &rt);
         let cttask = readin_u32(&t, &ct);
         let bttask = readin_u32(&t, &bt);
